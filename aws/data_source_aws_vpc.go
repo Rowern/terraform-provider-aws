@@ -3,8 +3,10 @@ package aws
 import (
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/hashicorp/terraform/helper/schema"
 )
@@ -14,6 +16,12 @@ func dataSourceAwsVpc() *schema.Resource {
 		Read: dataSourceAwsVpcRead,
 
 		Schema: map[string]*schema.Schema{
+			"arn": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+
 			"cidr_block": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -105,6 +113,21 @@ func dataSourceAwsVpcRead(d *schema.ResourceData, meta interface{}) error {
 	var id string
 	if cid, ok := d.GetOk("id"); ok {
 		id = cid.(string)
+	} else if carn, ok := d.GetOk("arn"); ok {
+		log.Printf("[DEBUG] Trying to get account VPC ID from the ARN %s", carn.(string))
+		parsedArn, err := arn.Parse(carn.(string))
+		if err != nil {
+			return err
+		}
+
+		r, _ := regexp.Compile("vpc/(.+)")
+		match := r.FindStringSubmatch(parsedArn.Resource)
+
+		if len(match) != 2 {
+			return fmt.Errorf("Could not get the VPC id from the ARN: %s", carn.(string))
+		}
+
+		id = match[1]
 	}
 
 	if id != "" {
@@ -191,6 +214,16 @@ func dataSourceAwsVpcRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	d.Set("enable_dns_hostnames", attResp.EnableDnsHostnames.Value)
+
+	carn := arn.ARN{
+		Partition: meta.(*AWSClient).partition,
+		Service:   "ec2",
+		Region:    meta.(*AWSClient).region,
+		AccountID: meta.(*AWSClient).accountid,
+		Resource:  fmt.Sprintf("vpc/%s", *vpc.VpcId),
+	}
+
+	d.Set("arn", carn)
 
 	return nil
 }
