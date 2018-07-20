@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -95,6 +96,8 @@ func TestAccAWSVpc_basic(t *testing.T) {
 						"aws_vpc.foo", "default_route_table_id"),
 					resource.TestCheckResourceAttr(
 						"aws_vpc.foo", "enable_dns_support", "true"),
+					resource.TestMatchResourceAttr(
+						"aws_vpc.foo", "arn", regexp.MustCompile(`^arn:[\w-]+:ec2:[^:]+:\d{12}:vpc/.+$`)),
 				),
 			},
 		},

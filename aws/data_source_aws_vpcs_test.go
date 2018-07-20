@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform/helper/acctest"
@@ -18,6 +19,8 @@ func TestAccDataSourceAwsVpcs_basic(t *testing.T) {
 				Config: testAccDataSourceAwsVpcsConfig(),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckAwsVpcsDataSourceExists("data.aws_vpcs.all"),
+					resource.TestMatchResourceAttr(
+						"data.aws_vpcs.all", "arn", regexp.MustCompile(`^arn:[\w-]+:ec2:[^:]+:\d{12}:vpc/.+$`)),
 				),
 			},
 		},
